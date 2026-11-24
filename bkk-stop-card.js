@@ -1,94 +1,16 @@
 
-class BKKStopCard extends HTMLElement {
+import { LitElement, html, css } from "https://unpkg.com/lit-element@2.4.0/lit-element.js?module";
 
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
+class BKKStopCard extends LitElement {
+  static get properties() {
+    return {
+      hass: { type: Object },
+      config: { type: Object },
+    };
   }
 
-  _getAttributes(hass,entity) {
-    var res = [];
-    var bikes = "";
-    var icon;
-    var max_items = this._config.max_items;
-    var nr_of_items;
-    var vehicle;
-    var wheelchair = "";
-    var nightbus = "";
-
-    if (typeof hass.states[`${entity}`] != "undefined") {
-      const data1 = hass.states[`${entity}`].attributes['vehicles'];
-      const station = hass.states[`${entity}`].attributes['stationName'];
-
-      if (data1.length > 0) {
-        nr_of_items= max_items > 0 ? Math.min(data1.length,max_items) : data1.length;
-
-        for(var i=0; i<nr_of_items; i++) {
-          if (data1[i].hasOwnProperty('wheelchair')) {
-            wheelchair='<ha-icon icon="mdi:wheelchair-accessibility" class="extraic">';
-          }
-          if (data1[i].hasOwnProperty('bikesAllowed')) {
-            bikes='<ha-icon icon="mdi:bike" class="extraic">';
-          }
-          icon=data1[i].type.toLowerCase();
-          vehicle=icon;
-          if (icon == "trolleybus") {
-            icon="bus"
-          } else if (icon == "rail") {
-            icon="train"
-          }
-          if (vehicle == "bus" && /^(6|9[0-9]{2}[A-Z]?)$/.test(data1[i].routeid)) {
-            nightbus = "_night";
-          } else {
-            nightbus = "";
-          }
-          res.push({
-            attime: data1[i].attime,
-            predicted_attime: data1[i].predicted_attime,
-            bikes: bikes,
-            headsign: data1[i].headsign,
-            inmin: data1[i].in,
-            icon: icon,
-            key: data1[i].routeid,
-            station: station,
-            vehicle: vehicle,
-            wheelchair: wheelchair,
-            nightbus: nightbus,
-          });
-        }
-      } else {
-        res.push({
-          key: 'No service',
-          vehicle: '',
-          inmin: 'following',
-          headsign: 'any destination',
-          nightbus: '',
-          wheelchair: '',
-          bikes: '',
-          icon: '',
-          attime: '',
-          predicted_attime: '',
-          station: station
-        });
-      }
-    }
-    return res;
-  }
-
-  setConfig(config) {
-    if (!config.entity) {
-      throw new Error('Please define an entity');
-    }
-    config.filter
-
-    const root = this.shadowRoot;
-    if (root.lastChild) root.removeChild(root.lastChild);
-
-    const cardConfig = Object.assign({}, config);
-    const card = document.createElement('ha-card');
-    const content = document.createElement('div');
-    const style = document.createElement('style');
-    style.textContent = `
+  static get styles() {
+    return css`
       table {
         width: 100%;
         padding: 0px 36px 16px 0px;
@@ -97,7 +19,7 @@ class BKKStopCard extends HTMLElement {
         margin-right: 16px;
       }
       table tr:nth-child(odd) {
-        background-color: var(--paper-card-background-color);
+        background-color: var(--card-background-color, var(--ha-card-background, var(--paper-card-background-color, #fff)));
         vertical-align: middle;
       }
       table tr:nth-child(even) td:not(.bpgo) {
@@ -107,13 +29,13 @@ class BKKStopCard extends HTMLElement {
         padding-left: 5px;
       }
       .highlight {
-        font-weight: bold;
-        font-size: 150%;
-        width: 2em;
+        font-size: 100%;
       }
       .vehicle {
+        width: 1.8em;
         text-align: center;
-        padding: 3px 10px 3px 10px;
+        vertical-align: middle;
+        padding: 3px 3px 3px 3px;
         border-radius: 3px;
         color: #ffffff;
       }
@@ -156,8 +78,48 @@ class BKKStopCard extends HTMLElement {
       .rail_bpgo {
         background-color: #2ECC71;
       }
+      .rail_bpgo_H5 {
+        background-color: rgb(138,35,108);
+        border-radius: 50%;
+        padding-left: 3px;
+      }
+      .rail_bpgo_H6 {
+        background-color: rgb(123,68,0);
+        border-radius: 50%;
+        padding-left: 3px;
+      }
+      .rail_bpgo_H7 {
+        background-color: rgb(238,113,1);
+        border-radius: 50%;
+        padding-left: 3px;
+      }
+      .rail_bpgo_H8 {
+        background-color: rgb(237,110,134);
+        border-radius: 50%;
+        padding-left: 3px;
+      }
       .subway {
         width: 1.5em;
+      }
+      .subway_bpgo_M1 {
+        background-color: #ffd800;
+        border-radius: 50%;
+        padding-left: 5px;
+      }
+      .subway_bpgo_M2 {
+        background-color: #e41f18;
+        border-radius: 50%;
+        padding-left: 5px;
+      }
+      .subway_bpgo_M3 {
+        background-color: rgb(0,92,165);
+        border-radius: 50%;
+        padding-left: 5px;
+      }
+      .subway_bpgo_M4 {
+        background-color: rgb(76,162,47);
+        border-radius: 50%;
+        padding-left: 5px;
       }
       .arrival-time {
         text-align: right;
@@ -180,82 +142,158 @@ class BKKStopCard extends HTMLElement {
         padding: 4px;
         border-radius: 20%;
         color: var(--primary-text-color);
+        cursor: pointer;
+      }
     `;
-    content.innerHTML = `
-      <p id='station'>
-      <table>
-        <tbody id='attributes'>
-        </tbody>
-      </table>
-    `;
-    card.appendChild(style);
-    card.appendChild(content);
-    root.appendChild(card)
-    this._config = cardConfig;
   }
 
-  _updateContent(element, attributes, h_in_mins, h_at_time, h_predicted_at_time, l_bpgo) {
-    if (l_bpgo) { /// BP GO layout
-      element.innerHTML = `
-        ${attributes.map((attribute) => `
-          <tr>
-            <td class="highlight vehicle bpgo ${attribute.vehicle}_bpgo${attribute.nightbus}">${attribute.key}</td>
-            <td class="bpgo">${attribute.headsign}</td>
-            <td class="highlight arrival-time bpgo ${attribute.predicted_attime ? "estimated" : ''}">${attribute.inmin}'</td>
-          </tr>
-        `).join('')}
-      `;
-    } else { /// original layout
-      element.innerHTML = `
-        ${attributes.map((attribute) => `
-          <tr>
-            <td class="${attribute.vehicle}"><ha-icon class="${attribute.vehicle}" icon="mdi:${attribute.icon}"></td>
-            <td><span class="emp">${attribute.key}</span> to ${attribute.headsign}
-            ${h_in_mins === false ? "in " + `${attribute.inmin}` + " mins" : ''}
-            ${h_at_time === false ? "at " + `${attribute.attime}` : ''}
-            ${h_predicted_at_time === false ? `${attribute.predicted_attime ? "at " + `${attribute.predicted_attime}` + "(est.)" : "at " + `${attribute.attime}`}`: '' }
-            ${attribute.wheelchair}${attribute.bikes}</td>
-          </tr>
-        `).join('')}
-      `;
+  _getAttributes(hass, entity) {
+    const res = [];
+    const max_items = this.config.max_items || 0;
+    const stateObj = hass.states[entity];
+
+    if (stateObj && stateObj.attributes) {
+      const data1 = stateObj.attributes['vehicles'] || [];
+      const station = stateObj.attributes['stationName'] || 'Unknown';
+
+      if (data1.length > 0) {
+        const nr_of_items = max_items > 0 ? Math.min(data1.length, max_items) : data1.length;
+
+        for (let i = 0; i < nr_of_items; i++) {
+          // Changed to booleans because Lit handles raw HTML insertion differently
+          let bikes = data1[i].hasOwnProperty('bikesAllowed');
+          let wheelchair = data1[i].hasOwnProperty('wheelchair');
+          let nightbus = "";
+
+          let icon = data1[i].type ? data1[i].type.toLowerCase() : 'bus';
+          const vehicle = icon;
+
+          if (icon === "trolleybus") {
+            icon = "bus";
+          } else if (icon === "rail") {
+            icon = "train";
+          }
+
+          if (vehicle === "bus" && /^(6|9[0-9]{2}[A-Z]?)$/.test(data1[i].routeid)) {
+            nightbus = "_night";
+          }
+
+          let key = data1[i].routeid;
+          let extra_css_class = "";
+
+          if (vehicle === "subway") {
+            key = "M" + data1[i].routeid;
+            extra_css_class = "_" + key;
+          } else if (vehicle === "rail") {
+            key = "H" + data1[i].routeid;
+            extra_css_class = "_" + key;
+          }
+
+          res.push({
+            attime: data1[i].attime,
+            predicted_attime: data1[i].predicted_attime,
+            bikes: bikes,
+            headsign: data1[i].headsign,
+            inmin: data1[i].in,
+            icon: icon,
+            key: key,
+            station: station,
+            vehicle: vehicle,
+            wheelchair: wheelchair,
+            nightbus: nightbus,
+            extra_css_class: extra_css_class
+          });
+        }
+      } else {
+        res.push({
+          key: 'No service',
+          vehicle: '',
+          inmin: 'following',
+          headsign: 'any destination',
+          nightbus: '',
+          wheelchair: false,
+          bikes: false,
+          icon: '',
+          attime: '',
+          predicted_attime: '',
+          station: station,
+          extra_css_class: ''
+        });
+      }
     }
+    return res;
   }
 
-  _updateStation(element, attributes, name) {
-    element.innerHTML = `
-      ${attributes.map((attribute) => `
-        <div class="h_station emp">${name.length === 0 ? `${attribute.station}` : name}</div>
-        <div class="refresh"><ha-icon icon="mdi:sync" id="b_refresh">
-      `)[0]}
+  setConfig(config) {
+    if (!config.entity) {
+      throw new Error('Please define an entity');
+    }
+    this.config = config;
+  }
+
+  render() {
+    if (!this.config || !this.hass) {
+      return html``;
+    }
+
+    const stateObj = this.hass.states[this.config.entity];
+    if (!stateObj) {
+      return html`<ha-card><div class="card-content">Entity not found: ${this.config.entity}</div></ha-card>`;
+    }
+
+    const attributes = this._getAttributes(this.hass, this.config.entity);
+    const stationName = this.config.name || (attributes.length ? attributes[0].station : 'Unknown');
+
+    const hide_predicted_at_time = this.config.hide_predicted_at_time ?? false;
+    const hide_in_mins = this.config.hide_in_mins ?? false;
+    const hide_at_time = this.config.hide_at_time ?? true;
+    const layout_bpgo = this.config.layout_bpgo ?? false;
+
+    return html`
+      <ha-card>
+        <div id="station_container" style="padding-top:15px;">
+          <div id="station_name" class="h_station emp">${stationName}</div>
+          <div class="refresh">
+            <ha-icon icon="mdi:sync" @click="${this._refresh}"></ha-icon>
+          </div>
+        </div>
+        <table>
+          <tbody>
+            ${attributes.map(attr => {
+              if (layout_bpgo) {
+                return html`
+                  <tr>
+                    <td class="highlight vehicle bpgo ${attr.vehicle}_bpgo${attr.nightbus}${attr.extra_css_class}">${attr.key}</td>
+                    <td class="bpgo">${attr.headsign}</td>
+                    <td class="highlight arrival-time ${attr.predicted_attime ? "estimated" : ''}">${attr.inmin}'</td>
+                  </tr>
+                `;
+              } else {
+                return html`
+                  <tr>
+                    <td class="${attr.vehicle}">
+                      <ha-icon class="${attr.vehicle}" icon="mdi:${attr.icon}"></ha-icon>
+                    </td>
+                    <td>
+                      <span class="emp">${attr.key}</span> to ${attr.headsign}
+                      ${!hide_in_mins ? html`in ${attr.inmin} mins ` : ''}
+                      ${!hide_at_time ? html`at ${attr.attime} ` : ''}
+                      ${!hide_predicted_at_time ? html`${attr.predicted_attime ? `at ${attr.predicted_attime} (est.) ` : `at ${attr.attime} `}` : ''}
+                      ${attr.wheelchair ? html`<ha-icon icon="mdi:wheelchair-accessibility" class="extraic"></ha-icon>` : ''}
+                      ${attr.bikes ? html`<ha-icon icon="mdi:bike" class="extraic"></ha-icon>` : ''}
+                    </td>
+                  </tr>
+                `;
+              }
+            })}
+          </tbody>
+        </table>
+      </ha-card>
     `;
-    this._root.getElementById('b_refresh').addEventListener('click', this._refresh.bind(this));
-  }
-
-  set hass(hass) {
-    const config = this._config;
-    this._root = this.shadowRoot;
-    let hide_predicted_at_time = false;
-    if (typeof config.hide_predicted_at_time != "undefined") hide_predicted_at_time=config.hide_predicted_at_time
-    let hide_in_mins = false;
-    if (typeof config.hide_in_mins != "undefined") hide_in_mins=config.hide_in_mins
-    let hide_at_time = true;
-    if (typeof config.hide_at_time != "undefined") hide_at_time=config.hide_at_time
-    let name = '';
-    if (typeof config.name != "undefined") name=config.name
-    let max_items = 0;
-    if (typeof config.max_items != "undefined") max_items=config.max_items
-    let layout_bpgo = false;
-    if (typeof config.layout_bpgo != "undefined") layout_bpgo=config.layout_bpgo
-
-    let attributes = this._getAttributes(hass, config.entity);
-    this._hass = hass;
-
-    this._updateStation(this._root.getElementById('station'), attributes, name);
-    this._updateContent(this._root.getElementById('attributes'), attributes, hide_in_mins, hide_at_time, hide_predicted_at_time, layout_bpgo);
   }
 
   _refresh() {
-    this._hass.callService('bkk_stop', 'refresh', { entity_id: this._config.entity });
+    this.hass.callService('bkk_stop', 'refresh', { entity_id: this.config.entity });
   }
 
   getCardSize() {
